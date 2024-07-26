@@ -1,0 +1,129 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <title>My experiment</title>
+    <script src="https://unpkg.com/jspsych@7.3.4"></script>
+    <script src="https://unpkg.com/@jspsych/plugin-html-keyboard-response@1.1.3"></script>
+    <script src="https://unpkg.com/@jspsych/plugin-image-keyboard-response@1.1.3"></script>
+    <script src="https://unpkg.com/@jspsych/plugin-preload@1.1.3"></script>
+    <link href="https://unpkg.com/jspsych@7.3.4/css/jspsych.css" rel="stylesheet" type="text/css" />
+    <link rel="stylesheet" href="layout.css">
+  </head>
+  <body>
+    <div class="instructions-container">
+      <div class="instructions-text">
+        <p>在这个实验中,您将看到一个颜色词,请尽快按下对应的键来指出文字颜色,而不是词的含义。</p>
+        <div class="image-container">
+          <div class="image-item">
+            <img src='img/Red-R.jpg'></img>
+            <p class='small'><strong>颜色为红色按F键</strong></p>
+          </div>
+          <div class="image-item">
+            <img src='img/Green-G.jpg'></img>
+            <p class='small'><strong>颜色为绿色按J键</strong></p>
+          </div>
+        </div>
+        <p>按任意键开始实验</p>
+      </div>
+    </div>
+  </body>
+  <script>
+
+    /* initialize jsPsych */
+    var jsPsych = initJsPsych({
+      on_finish: function() {
+        jsPsych.data.displayData();
+      }
+    });
+
+    /* create timeline */
+    var timeline = [];
+
+    /* preload images */
+    var preload = {
+      type: jsPsychPreload,
+      images: ['img/Red-R.jpg', 'img/Red-G.jpg', 'img/Green-G.jpg', 'img/Green-R.jpg']
+    };
+    timeline.push(preload);
+
+    /* define welcome message trial */
+    var welcome = {
+      type: jsPsychHtmlKeyboardResponse,
+      stimulus: "欢迎来到本实验，请按任意键开始。"
+    };
+    timeline.push(welcome);
+
+    var instructions = {
+    type: jsPsychHtmlKeyboardResponse,
+    stimulus: document.querySelector('.instructions-container').outerHTML,
+    post_trial_gap: 1000
+  };
+    timeline.push(instructions);
+
+    /* define trial stimuli array for timeline variables */
+    var test_stimuli = [
+      { stimulus: 'img/Red-R.jpg', correct_response: 'f'},
+      { stimulus: 'img/Green-G.jpg', correct_response: 'j'},
+      { stimulus: 'img/Green-R.jpg', correct_response: 'j'},
+      { stimulus: 'img/Red-G.jpg', correct_response: 'f'},
+    ];
+
+    /* define fixation and test trials */
+    var fixation = {
+      type: jsPsychHtmlKeyboardResponse,
+      stimulus: '<div style="font-size:30px; display:flex; justify-content:center; align-items:center; ">+</div>',
+      choices: "NO_KEYS",
+      trial_duration: function(){
+        return jsPsych.randomization.sampleWithoutReplacement([250, 500, 750, 1000, 1250, 1500, 1750, 2000], 1)[0];
+      },
+      data: {
+        task: 'fixation'
+      }
+    };
+
+    var test = {
+      type: jsPsychImageKeyboardResponse,
+      stimulus: jsPsych.timelineVariable('stimulus'),
+      choices: ['f', 'j'],
+      css_classes: 'center-image',
+      data: {
+        task: 'response',
+        correct_response: jsPsych.timelineVariable('correct_response')
+      },
+      on_finish: function(data){
+        data.correct = jsPsych.pluginAPI.compareKeys(data.response, data.correct_response);
+      }
+    };
+
+    /* define test procedure */
+    var test_procedure = {
+      timeline: [fixation, test],
+      timeline_variables: test_stimuli,
+      repetitions: 10,
+      randomize_order: true
+    };
+    timeline.push(test_procedure);
+
+    /* define debrief */
+    var debrief_block = {
+      type: jsPsychHtmlKeyboardResponse,
+      stimulus: function() {
+
+        var trials = jsPsych.data.get().filter({task: 'response'});
+        var correct_trials = trials.filter({correct: true});
+        var accuracy = Math.round(correct_trials.count() / trials.count() * 100);
+        var rt = Math.round(correct_trials.select('rt').mean());
+
+        return `<p>你的正确率为 ${accuracy}% </p>
+          <p>你的平均反应时为 ${rt} ms</p>
+          <p>按任意键结束实验，感谢参与！</p>`;
+
+      }
+    };
+    timeline.push(debrief_block);
+
+    /* start the experiment */
+    jsPsych.run(timeline);
+
+  </script>
+</html>
